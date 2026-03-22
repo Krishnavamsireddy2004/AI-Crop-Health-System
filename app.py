@@ -10,62 +10,79 @@ import google.generativeai as genai
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 def get_ai_solution(plant, disease, severity, pest):
-    prompt = f"""
-    Give a detailed agricultural solution:
-    Plant: {plant}
-    Disease: {disease}
-    Severity: {severity}
-    Pest Status: {pest}
+    try:
+        prompt = f"""
+        You are an agricultural expert.
 
-    Include:
-    - Recommended pesticide
-    - Fertilizer suggestion
-    - Prevention tips
-    """
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)
-    return response.text
+        Plant: {plant}
+        Disease: {disease}
+        Severity: {severity}
+        Pest Status: {pest}
 
-# ---------------- UI DESIGN ----------------
+        Provide:
+        1. Disease explanation
+        2. Recommended pesticide name
+        3. Fertilizer name
+        4. Prevention tips
+        """
+
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        response = model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.7}
+        )
+
+        return response.text
+
+    except Exception as e:
+        return "⚠️ AI service temporarily unavailable. Please try again."
+
+# ---------------- IMAGE ENHANCEMENT ----------------
+def enhance_image(image):
+    img = np.array(image)
+
+    # Convert to LAB for contrast enhancement
+    lab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
+    l, a, b = cv2.split(lab)
+
+    # Apply CLAHE
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    cl = clahe.apply(l)
+
+    enhanced_lab = cv2.merge((cl,a,b))
+    enhanced_img = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2RGB)
+
+    return enhanced_img
+
+# ---------------- UI ----------------
 st.set_page_config(page_title="🌿 AI Crop Health System", layout="wide")
 
-st.markdown(
-    """
-    <style>
-    .main {
-        background-color: #f5fff5;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 st.title("🌱 AI-Based Crop Health Monitoring System")
-st.write("Upload plant image and pest audio to detect disease & get solutions")
+st.write("Upload plant image and pest audio to detect disease & get smart solutions")
 
 # ---------------- IMAGE INPUT ----------------
-st.subheader("📷 Upload Plant Image")
-uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+st.subheader("📷 Upload or Capture Plant Image")
 
-camera_image = st.camera_input("Or Capture Image")
+uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+camera_image = st.camera_input("Capture Image")
+
+image = None
 
 if camera_image:
     image = Image.open(camera_image)
 elif uploaded_file:
     image = Image.open(uploaded_file)
-else:
-    image = None
 
 if image:
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image, caption="Original Image", use_column_width=True)
+
+    # 🔥 Image Enhancement
+    enhanced_img = enhance_image(image)
+    st.image(enhanced_img, caption="Enhanced Image", use_column_width=True)
 
     # ---------------- FAKE AI DETECTION ----------------
-    diseases = [
-        "Tomato Early Blight",
-        "Tomato Late Blight",
-        "Leaf Spot",
-        "Healthy"
-    ]
+    diseases = ["Early Blight", "Late Blight", "Leaf Spot", "Healthy"]
     severity_levels = ["Mild", "Moderate", "Severe"]
 
     plant_name = "Tomato Leaf"
@@ -81,9 +98,12 @@ if image:
 
 # ---------------- AUDIO INPUT ----------------
 st.subheader("🎤 Upload Pest Sound")
+
 audio_file = st.file_uploader("Upload Audio", type=["wav"])
 
-pest_status = "Unknown"
+pest_status = "No Data"
+pesticide = "N/A"
+fertilizer = "N/A"
 
 if audio_file:
     y, sr = librosa.load(audio_file, sr=22050)
@@ -91,12 +111,16 @@ if audio_file:
 
     if energy > 0.02:
         pest_status = "Active Pest Detected"
+        pesticide = "Chlorpyrifos"
+        fertilizer = "NPK 20-20-20"
     else:
-        pest_status = "No Significant Pest Activity"
+        pest_status = "No Pest Detected"
+        pesticide = "Not Required"
+        fertilizer = "Organic Compost"
 
     st.write("Pest Status:", pest_status)
 
-# ---------------- GEMINI AI OUTPUT ----------------
+# ---------------- GEMINI AI ----------------
 if image:
     st.subheader("🤖 AI Expert Recommendation")
 
@@ -114,10 +138,16 @@ st.subheader("📊 Farmer Dashboard")
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric("🌿 Disease Risk", severity if image else "N/A")
+col1.metric("🌿 Disease Severity", severity if image else "N/A")
 col2.metric("🐛 Pest Activity", pest_status)
 col3.metric("📈 Confidence", str(confidence) if image else "N/A")
 
+# ---------------- EXTRA INFO ----------------
+st.subheader("🌾 Recommended Treatment")
+
+st.write("🧪 Pesticide:", pesticide)
+st.write("🌱 Fertilizer:", fertilizer)
+
 # ---------------- FOOTER ----------------
 st.write("---")
-st.write("Developed using Generative AI + IoT Concept 🚀")
+st.write("🚀 Developed using Generative AI + IoT Concept")
