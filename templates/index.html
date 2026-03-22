@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Crop Health</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="container">
+    <h1>🌱 AI Crop Health Monitoring</h1>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="image" required>
+        <button type="submit">Analyze</button>
+    </form>
+
+    {% if result %}
+    <div class="result">
+        <h2>🌿 Results</h2>
+        <p><b>Plant:</b> {{result.plant}}</p>
+        <p><b>Disease:</b> {{result.disease}}</p>
+        <p><b>Severity:</b> {{result.severity}}</p>
+        <p><b>Confidence:</b> {{result.confidence}}</p>
+        <p><b>Pesticide:</b> {{result.pesticide}}</p>
+        <p><b>Fertilizer:</b> {{result.fertilizer}}</p>
+    </div>
+    {% endif %}
+
+</div>
+
+</body>
+</html>
