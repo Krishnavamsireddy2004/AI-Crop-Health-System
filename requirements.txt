@@ -1,7 +1,7 @@
 streamlit
 numpy
 pillow
-librosa==0.10.1
 opencv-python-headless
+librosa
 scipy
-google-generativeai
+reportlab
