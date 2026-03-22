@@ -42,3 +42,8 @@ if image_file:
         solution = "Use strong pesticide immediately"
 
     st.write("💊 Solution:", solution)
+    import google.generativeai as genai
+
+genai.configure(api_key="YOUR_API_KEY")
+
+model = genai.GenerativeModel("gemini-pro")
