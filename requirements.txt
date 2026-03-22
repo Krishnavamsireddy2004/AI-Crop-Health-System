@@ -1,4 +1,8 @@
 streamlit
-pillow
+tensorflow
 numpy
+pillow
+librosa
+opencv-python
 google-generativeai
+scipy
