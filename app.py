@@ -1,156 +1,115 @@
 import streamlit as st
 import numpy as np
-import librosa
 import cv2
 from PIL import Image
-import random
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-import tempfile
+import tensorflow as tf
 
 # ---------------- PAGE CONFIG ----------------
-st.set_page_config(page_title="🌿 AI Crop Health System", layout="wide")
+st.set_page_config(page_title="🌿 AI Crop Health", layout="wide")
 
-# ---------------- UI STYLE ----------------
+# ---------------- BACKGROUND IMAGE ----------------
 st.markdown("""
 <style>
-body {
-    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+.stApp {
+    background-image: url("https://images.unsplash.com/photo-1501004318641-b39e6451bec6");
+    background-size: cover;
+    background-attachment: fixed;
 }
 .result-box {
-    background: rgba(255,255,255,0.05);
+    background: rgba(0,0,0,0.6);
     padding: 20px;
     border-radius: 15px;
+    color: white;
     border: 1px solid #00ffcc;
-    box-shadow: 0 0 15px #00ffcc;
 }
-h1,h2,h3 {color:#00ffcc;}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- IMAGE ENHANCEMENT ----------------
-def enhance_image(image):
-    img = np.array(image)
-    lab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
-    l,a,b = cv2.split(lab)
-    clahe = cv2.createCLAHE(2.0,(8,8))
-    cl = clahe.apply(l)
-    enhanced = cv2.merge((cl,a,b))
-    return cv2.cvtColor(enhanced, cv2.COLOR_LAB2RGB)
+# ---------------- LOAD MODEL ----------------
+@st.cache_resource
+def load_model():
+    return tf.keras.models.load_model("model.h5")
 
-# ---------------- PDF GENERATION ----------------
-def generate_pdf(plant, disease, severity, pest, pesticide, fertilizer):
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    c = canvas.Canvas(temp_file.name, pagesize=letter)
+model = load_model()
 
-    c.drawString(100, 750, "Crop Health Report")
-    c.drawString(100, 720, f"Plant: {plant}")
-    c.drawString(100, 700, f"Disease: {disease}")
-    c.drawString(100, 680, f"Severity: {severity}")
-    c.drawString(100, 660, f"Pest Status: {pest}")
-    c.drawString(100, 640, f"Pesticide: {pesticide}")
-    c.drawString(100, 620, f"Fertilizer: {fertilizer}")
+# ---------------- CLASS LABELS ----------------
+class_names = {
+    0: 'Pepper Bacterial Spot',
+    1: 'Pepper Healthy',
+    2: 'Potato Early Blight',
+    3: 'Potato Late Blight',
+    4: 'Potato Healthy',
+    5: 'Tomato Bacterial Spot',
+    6: 'Tomato Early Blight',
+    7: 'Tomato Late Blight',
+    8: 'Tomato Leaf Mold',
+    9: 'Tomato Septoria',
+    10: 'Tomato Spider Mites',
+    11: 'Tomato Target Spot',
+    12: 'Tomato Yellow Curl Virus',
+    13: 'Tomato Mosaic Virus',
+    14: 'Tomato Healthy'
+}
 
-    c.save()
-    return temp_file.name
+# ---------------- IMAGE PROCESS ----------------
+def preprocess_image(image):
+    img = image.resize((224,224))
+    img = np.array(img) / 255.0
+    img = np.expand_dims(img, axis=0)
+    return img
 
-# ---------------- HEADER ----------------
+# ---------------- UI ----------------
 st.title("🌱 AI Crop Health Monitoring System")
 
-# ---------------- RANDOM BACKGROUND IMAGE ----------------
-bg_images = [
-    "https://images.unsplash.com/photo-1501004318641-b39e6451bec6",
-    "https://images.unsplash.com/photo-1464226184884-fa280b87c399",
-    "https://images.unsplash.com/photo-1500382017468-9049fed747ef"
-]
-st.image(random.choice(bg_images), use_column_width=True)
+image_file = st.file_uploader("Upload Leaf Image", type=["jpg","png","jpeg"])
 
-# ---------------- INPUT ----------------
-col1, col2 = st.columns(2)
+if image_file:
+    image = Image.open(image_file)
+    st.image(image, caption="Uploaded Image")
 
-with col1:
-    image_file = st.file_uploader("Upload Plant Image", type=["jpg","png","jpeg"])
-    cam = st.camera_input("Or Capture")
+    # ---------------- PREDICTION ----------------
+    processed = preprocess_image(image)
+    pred = model.predict(processed)
 
-    image = None
-    if cam:
-        image = Image.open(cam)
-    elif image_file:
-        image = Image.open(image_file)
+    class_index = np.argmax(pred)
+    confidence = round(np.max(pred),2)
 
-    if image:
-        st.image(image, caption="Original")
+    label = class_names[class_index]
 
-        enhanced = enhance_image(image)
-        st.image(enhanced, caption="Enhanced")
+    # ---------------- EXTRACT INFO ----------------
+    if "Tomato" in label:
+        plant = "Tomato"
+    elif "Potato" in label:
+        plant = "Potato"
+    elif "Pepper" in label:
+        plant = "Pepper"
+    else:
+        plant = "Unknown"
 
-with col2:
-    audio_file = st.file_uploader("Upload Pest Audio", type=["wav"])
-
-    pest_status = "No Analysis"
-    if audio_file:
-        y,sr = librosa.load(audio_file, sr=22050)
-        energy = np.mean(np.abs(y))
-
-        if energy > 0.02:
-            pest_status = "Active Pest Detected"
-        else:
-            pest_status = "No Pest"
-
-# ---------------- DETECTION ----------------
-if image:
-    plant = "Tomato"
-
-    diseases = ["Leaf Spot","Early Blight","Late Blight"]
-    disease = random.choice(diseases)
-
-    severity = random.choice(["Mild","Moderate","Severe"])
-    confidence = round(random.uniform(0.85,0.95),2)
-
-    # ---------------- SMART RULES ----------------
-    if pest_status == "Active Pest Detected":
+    if "Healthy" in label:
+        disease = "Healthy"
+        severity = "None"
+        pesticide = "Not Required"
+        fertilizer = "Organic Compost"
+    else:
+        disease = label.replace(plant,"")
+        severity = "Moderate" if confidence < 0.9 else "Severe"
         pesticide = "Imidacloprid"
         fertilizer = "NPK 20-20-20"
-    else:
-        pesticide = "Neem Oil"
-        fertilizer = "Organic Compost"
 
-    st.markdown("## 🌿 Results")
-
+    # ---------------- OUTPUT ----------------
     st.markdown(f"""
     <div class="result-box">
-    🌱 Plant: {plant}<br>
-    🦠 Disease: {disease}<br>
-    📊 Severity: {severity}<br>
+    🌿 Plant: {plant} <br>
+    🦠 Disease: {disease} <br>
+    📊 Severity: {severity} <br>
     📈 Accuracy: {confidence}
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------------- SIMPLE AI EXPLANATION ----------------
-    st.markdown("## 🤖 Recommendation")
-
     st.markdown(f"""
     <div class="result-box">
-    Apply {pesticide} to control disease.<br>
-    Use {fertilizer} for better growth.<br>
-    Monitor plant regularly and avoid overwatering.
+    🧪 Pesticide: {pesticide} <br>
+    🌱 Fertilizer: {fertilizer}
     </div>
     """, unsafe_allow_html=True)
-
-    # ---------------- DASHBOARD ----------------
-    st.markdown("## 📊 Dashboard")
-
-    c1,c2,c3 = st.columns(3)
-    c1.metric("Severity", severity)
-    c2.metric("Pest", pest_status)
-    c3.metric("Accuracy", confidence)
-
-    # ---------------- PDF ----------------
-    pdf_path = generate_pdf(plant,disease,severity,pest_status,pesticide,fertilizer)
-
-    with open(pdf_path,"rb") as f:
-        st.download_button("📄 Download Report", f, file_name="report.pdf")
-
-# ---------------- FOOTER ----------------
-st.write("---")
-st.write("🚀 Smart Agriculture using AI + Image + Audio Analysis")
