@@ -1,7 +1,5 @@
-streamlit
+flask
+requests
 numpy
 pillow
-opencv-python-headless
-librosa
-scipy
-reportlab
+gunicorn
