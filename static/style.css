@@ -1,0 +1,32 @@
+body {
+    background-image: url("https://images.unsplash.com/photo-1501004318641-b39e6451bec6");
+    background-size: cover;
+    font-family: Arial;
+    color: white;
+}
+
+.container {
+    text-align: center;
+    margin-top: 100px;
+}
+
+input, button {
+    padding: 12px;
+    margin: 10px;
+    border-radius: 10px;
+    border: none;
+}
+
+button {
+    background-color: #00ffcc;
+    color: black;
+    font-weight: bold;
+}
+
+.result {
+    background: rgba(0,0,0,0.7);
+    padding: 20px;
+    border-radius: 15px;
+    display: inline-block;
+    margin-top: 20px;
+}
